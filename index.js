@@ -1,157 +1,157 @@
-
-
-export function sha256(bytesArray) {
-    async function getGPUDevice() {
-        const adapter = await navigator.gpu.requestAdapter({ powerPreference: "high-performance" });
-        if (!adapter) {
-            alert("No adapter");
-        }
-        else {
-            return await adapter.requestDevice();
-        }
+async function getGPUDevice() {
+    const adapter = await navigator.gpu.requestAdapter({ powerPreference: "high-performance" });
+    if (!adapter) {
+        alert("No adapter");
     }
+    else {
+        return await adapter.requestDevice();
+    }
+}
 
-    getGPUDevice()
-        .then(async device => {
+function padMessage(bytes, size) {
+    const arrBuff = new ArrayBuffer(size * 4);
+    new Uint8Array(arrBuff).set(bytes);
+    return new Uint32Array(arrBuff);
+}
 
-            async function runSha256() {
+function getMessageSizes(bytes) {
+    const lenBit = bytes.length * 8;
+    const k = 512 - (lenBit + 1 + 64) % 512;
+    const padding = 1 + k + 64;
+    const lenBitPadded = lenBit + padding;
+    const arrBuff = new ArrayBuffer(2 * Uint32Array.BYTES_PER_ELEMENT);
+    const u32Arr = new Uint32Array(arrBuff);
+    u32Arr[0] = lenBit / 32;
+    u32Arr[1] = lenBitPadded / 32;
+    return u32Arr;
+}
 
-                const messages = [];
-                let bufferSize = 0;
-                const sizes = getMessageSizes(bytesArray[0]);
-                bytesArray.forEach(bytes => {
-                    if (bytes.length % 4 !== 0) throw "Message must be 32-bit aligned";
-                    const message = padMessage(bytes, sizes[1]);
-                    // message is the padded version of the input message as dscribed by SHA-256 specification
-                    messages.push(message);
-                    // messages has same size
-                    bufferSize += message.byteLength;
-                });
-                const numMessages = messages.length;
+/**
+ * 
+ * @param {array} bytesArray array of array of bytes
+ * @returns {Uint8Array[]} hashes
+ */
+export async function sha256(bytesArray) {
 
-                // build shader input data
-                const messageArray = new Uint32Array(new ArrayBuffer(bufferSize));
-                let offset = 0;
-                messages.forEach(message => {
-                    messageArray.set(message, offset);
-                    offset += message.length;
-                });
+    try {
+        const device = await getGPUDevice();
 
-                // messages
-                const messageArrayBuffer = device.createBuffer({
-                    mappedAtCreation: true,
-                    size: messageArray.byteLength,
-                    usage: GPUBufferUsage.STORAGE
-                });
-                new Uint32Array(messageArrayBuffer.getMappedRange()).set(messageArray);
-                messageArrayBuffer.unmap();
+        const messages = [];
+        let bufferSize = 0;
+        const sizes = getMessageSizes(bytesArray[0]);
+        bytesArray.forEach(bytes => {
+            if (bytes.length % 4 !== 0) throw "Message must be 32-bit aligned";
+            const message = padMessage(bytes, sizes[1]);
+            // message is the padded version of the input message as dscribed by SHA-256 specification
+            messages.push(message);
+            // messages has same size
+            bufferSize += message.byteLength;
+        });
+        const numMessages = messages.length;
 
-                // sizes
-                const sizesBuffer = device.createBuffer({
-                    mappedAtCreation: true,
-                    size: sizes.byteLength,
-                    usage: GPUBufferUsage.STORAGE
-                });
-                new Uint32Array(sizesBuffer.getMappedRange()).set(sizes);
-                sizesBuffer.unmap();
+        // build shader input data
+        const messageArray = new Uint32Array(new ArrayBuffer(bufferSize));
+        let offset = 0;
+        messages.forEach(message => {
+            messageArray.set(message, offset);
+            offset += message.length;
+        });
 
-                // Result
-                const resultBufferSize = (256 / 8) * numMessages;
-                const resultBuffer = device.createBuffer({
-                    size: resultBufferSize,
-                    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC
-                });
+        // messages
+        const messageArrayBuffer = device.createBuffer({
+            mappedAtCreation: true,
+            size: messageArray.byteLength,
+            usage: GPUBufferUsage.STORAGE
+        });
+        new Uint32Array(messageArrayBuffer.getMappedRange()).set(messageArray);
+        messageArrayBuffer.unmap();
 
-                const shaderModule = device.createShaderModule({
-                    code: await (await fetch("shader.wgsl")).text()
-                });
+        // sizes
+        const sizesBuffer = device.createBuffer({
+            mappedAtCreation: true,
+            size: sizes.byteLength,
+            usage: GPUBufferUsage.STORAGE
+        });
+        new Uint32Array(sizesBuffer.getMappedRange()).set(sizes);
+        sizesBuffer.unmap();
 
-                const computePipeline = device.createComputePipeline({
-                    compute: {
-                        module: shaderModule,
-                        entryPoint: "sha256"
-                    },
-                    layout: 'auto'
-                });
+        // Result
+        const resultBufferSize = (256 / 8) * numMessages;
+        const resultBuffer = device.createBuffer({
+            size: resultBufferSize,
+            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC
+        });
 
-                const bindGroup = device.createBindGroup({
-                    layout: computePipeline.getBindGroupLayout(0),
-                    entries: [
-                        {
-                            binding: 0,
-                            resource: {
-                                buffer: messageArrayBuffer
-                            }
-                        },
-                        {
-                            binding: 1,
-                            resource: {
-                                buffer: sizesBuffer
-                            }
-                        },
-                        {
-                            binding: 2,
-                            resource: {
-                                buffer: resultBuffer
-                            }
-                        }
-                    ]
-                });
+        const shaderModule = device.createShaderModule({
+            code: await (await fetch("shader.wgsl")).text()
+        });
 
-                const commandEncoder = device.createCommandEncoder();
+        const computePipeline = device.createComputePipeline({
+            compute: {
+                module: shaderModule,
+                entryPoint: "sha256"
+            },
+            layout: 'auto'
+        });
 
-                const passEncoder = commandEncoder.beginComputePass();
-                passEncoder.setPipeline(computePipeline);
-                passEncoder.setBindGroup(0, bindGroup);
-                passEncoder.dispatchWorkgroups(1, 1);
-                passEncoder.end();
-
-                const gpuReadBuffer = device.createBuffer({
-                    size: resultBufferSize,
-                    usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ
-                });
-                commandEncoder.copyBufferToBuffer(
-                    resultBuffer,
-                    0,
-                    gpuReadBuffer,
-                    0,
-                    resultBufferSize
-                );
-
-                const gpuCommands = commandEncoder.finish();
-                device.queue.submit([gpuCommands]);
-
-                await gpuReadBuffer.mapAsync(GPUMapMode.READ);
-
-                const hashSize = 256 / 8;
-                for (let i = 0; i < numMessages; i++) {
-                    console.log(buf2hex(gpuReadBuffer.getMappedRange(i * hashSize, hashSize)));
+        const bindGroup = device.createBindGroup({
+            layout: computePipeline.getBindGroupLayout(0),
+            entries: [
+                {
+                    binding: 0,
+                    resource: {
+                        buffer: messageArrayBuffer
+                    }
+                },
+                {
+                    binding: 1,
+                    resource: {
+                        buffer: sizesBuffer
+                    }
+                },
+                {
+                    binding: 2,
+                    resource: {
+                        buffer: resultBuffer
+                    }
                 }
-            }
+            ]
+        });
 
-            await runSha256();
-        })
-        .catch(err => console.error(err));
+        const commandEncoder = device.createCommandEncoder();
 
-    function buf2hex(buffer) {
-        return new Uint8Array(buffer).reduce((a, b) => a + b.toString(16).padStart(2, '0'), '0x');
+        const passEncoder = commandEncoder.beginComputePass();
+        passEncoder.setPipeline(computePipeline);
+        passEncoder.setBindGroup(0, bindGroup);
+        passEncoder.dispatchWorkgroups(1, 1);
+        passEncoder.end();
+
+        const gpuReadBuffer = device.createBuffer({
+            size: resultBufferSize,
+            usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ
+        });
+        commandEncoder.copyBufferToBuffer(
+            resultBuffer,
+            0,
+            gpuReadBuffer,
+            0,
+            resultBufferSize
+        );
+
+        const gpuCommands = commandEncoder.finish();
+        device.queue.submit([gpuCommands]);
+
+        await gpuReadBuffer.mapAsync(GPUMapMode.READ);
+
+        const hashSize = 256 / 8;
+        const hashes = [];
+        for (let i = 0; i < numMessages; i++) {
+            hashes.push(new Uint8Array(gpuReadBuffer.getMappedRange(i * hashSize, hashSize)));
+        }
+
+        return hashes;
     }
-
-    function padMessage(bytes, size) {
-        const arrBuff = new ArrayBuffer(size * 4);
-        new Uint8Array(arrBuff).set(bytes);
-        return new Uint32Array(arrBuff);
-    }
-
-    function getMessageSizes(bytes) {
-        const lenBit = bytes.length * 8;
-        const k = 512 - (lenBit + 1 + 64) % 512;
-        const padding = 1 + k + 64;
-        const lenBitPadded = lenBit + padding;
-        const arrBuff = new ArrayBuffer(2 * Uint32Array.BYTES_PER_ELEMENT);
-        const u32Arr = new Uint32Array(arrBuff);
-        u32Arr[0] = lenBit / 32;
-        u32Arr[1] = lenBitPadded / 32;
-        return u32Arr;
+    catch (error) {
+        console.error(error);
     }
 }
