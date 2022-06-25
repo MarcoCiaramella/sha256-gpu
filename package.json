@@ -1,0 +1,28 @@
+{
+  "name": "@marco_ciaramella/sha256-gpu",
+  "version": "1.0.0",
+  "description": "SHA-256 over WebGPU",
+  "main": "index.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MarcoCiaramella/sha256-gpu.git"
+  },
+  "keywords": [
+    "sha-256",
+    "sha256",
+    "webgpu",
+    "wgsl"
+  ],
+  "author": "Marco Ciaramella",
+  "license": "Unlicense",
+  "bugs": {
+    "url": "https://github.com/MarcoCiaramella/sha256-gpu/issues"
+  },
+  "homepage": "https://github.com/MarcoCiaramella/sha256-gpu#readme"
+}
