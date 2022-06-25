@@ -26,15 +26,25 @@ function getMessageSizes(bytes) {
     return u32Arr;
 }
 
+function calcNumWorkgroups(device, bytesArray) {
+    const numWorkgroups = Math.ceil(bytesArray.length / 256);
+    if (numWorkgroups > device.limits.maxComputeWorkgroupsPerDimension) {
+        throw `Input array is too large. Max is ${device.limits.maxComputeWorkgroupsPerDimension / 256} arrays.`;
+    }
+    return numWorkgroups;
+}
+
 /**
  * 
- * @param {array} bytesArray array of array of bytes
+ * @param {array} bytesArray array of array of bytes (array of bytes must be 32-bit aligned)
  * @returns {Uint8Array[]} hashes
  */
 export async function sha256(bytesArray) {
 
     try {
         const device = await getGPUDevice();
+
+        const numWorkgroups = calcNumWorkgroups(device, bytesArray);
 
         const messages = [];
         let bufferSize = 0;
@@ -123,7 +133,7 @@ export async function sha256(bytesArray) {
         const passEncoder = commandEncoder.beginComputePass();
         passEncoder.setPipeline(computePipeline);
         passEncoder.setBindGroup(0, bindGroup);
-        passEncoder.dispatchWorkgroups(1, 1);
+        passEncoder.dispatchWorkgroups(numWorkgroups);
         passEncoder.end();
 
         const gpuReadBuffer = device.createBuffer({

@@ -36,15 +36,15 @@ fn ch(e: u32, f: u32, g: u32) -> u32 {
     return (e & f) ^ ((~e) & g);
 }
 
-
+// TODO add messages length as input
 @group(0) @binding(0) var<storage, read_write> messages: array<u32>;
 @group(0) @binding(1) var<storage, read> sizes: array<u32>;
 @group(0) @binding(2) var<storage, read_write> hash: array<u32>;
 
-@compute @workgroup_size(3, 3)
+@compute @workgroup_size(256)
 fn sha256(@builtin(global_invocation_id) global_id: vec3<u32>) {
 
-    let index = (3 * global_id.y) + global_id.x;
+    let index = global_id.x;
     let message_base_index = index * sizes[1];
     let hash_base_index = index * (256u / 32u);
 
