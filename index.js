@@ -48,10 +48,10 @@ export async function sha256(bytesArray) {
 
         const messages = [];
         let bufferSize = 0;
-        const sizes = getMessageSizes(bytesArray[0]);
+        const messageSizes = getMessageSizes(bytesArray[0]);
         bytesArray.forEach(bytes => {
             if (bytes.length % 4 !== 0) throw "Message must be 32-bit aligned";
-            const message = padMessage(bytes, sizes[1]);
+            const message = padMessage(bytes, messageSizes[1]);
             // message is the padded version of the input message as dscribed by SHA-256 specification
             messages.push(message);
             // messages has same size
@@ -76,14 +76,23 @@ export async function sha256(bytesArray) {
         new Uint32Array(messageArrayBuffer.getMappedRange()).set(messageArray);
         messageArrayBuffer.unmap();
 
-        // sizes
-        const sizesBuffer = device.createBuffer({
+        // num_messages
+        const numMessagesBuffer = device.createBuffer({
             mappedAtCreation: true,
-            size: sizes.byteLength,
+            size: Uint32Array.BYTES_PER_ELEMENT,
             usage: GPUBufferUsage.STORAGE
         });
-        new Uint32Array(sizesBuffer.getMappedRange()).set(sizes);
-        sizesBuffer.unmap();
+        new Uint32Array(numMessagesBuffer.getMappedRange()).set([bytesArray.length]);
+        numMessagesBuffer.unmap();
+
+        // message_sizes
+        const messageSizesBuffer = device.createBuffer({
+            mappedAtCreation: true,
+            size: messageSizes.byteLength,
+            usage: GPUBufferUsage.STORAGE
+        });
+        new Uint32Array(messageSizesBuffer.getMappedRange()).set(messageSizes);
+        messageSizesBuffer.unmap();
 
         // Result
         const resultBufferSize = (256 / 8) * numMessages;
@@ -116,11 +125,17 @@ export async function sha256(bytesArray) {
                 {
                     binding: 1,
                     resource: {
-                        buffer: sizesBuffer
+                        buffer: numMessagesBuffer
                     }
                 },
                 {
                     binding: 2,
+                    resource: {
+                        buffer: messageSizesBuffer
+                    }
+                },
+                {
+                    binding: 3,
                     resource: {
                         buffer: resultBuffer
                     }
