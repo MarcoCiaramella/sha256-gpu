@@ -2,6 +2,8 @@
 SHA-256 implementation in WebGPU (a new web API for GPU computing).
 ## Warning
 Since WebGPU is still experimental you can play with it on [Chrome Canary](https://www.google.com/intl/it/chrome/canary/) by enabling `chrome://flags/#enable-unsafe-webgpu`. Or [Firefox Nightly](https://www.mozilla.org/it/firefox/channel/desktop/) by enabling WebGPU in settings.
+## Install
+`npm i @marco_ciaramella/sha256-gpu`
 ## How to use
 ```javascript
 import { sha256 } from "@marco_ciaramella/sha256-gpu";
