@@ -309,8 +309,6 @@ export async function sha256(bytesArray) {
             hashes.push(new Uint8Array(gpuReadBuffer.getMappedRange(i * hashSize, hashSize)));
         }
 
-        device.destroy();
-
         return hashes;
     }
     catch (error) {
