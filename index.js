@@ -169,6 +169,8 @@ function calcNumWorkgroups(device, bytesArray) {
     return numWorkgroups;
 }
 
+let device;
+
 /**
  * 
  * @param {array} bytesArray array of array of bytes (array of bytes must be 32-bit aligned)
@@ -177,7 +179,7 @@ function calcNumWorkgroups(device, bytesArray) {
 export async function sha256(bytesArray) {
 
     try {
-        const device = await getGPUDevice();
+        device = device ? device : await getGPUDevice();
 
         const numWorkgroups = calcNumWorkgroups(device, bytesArray);
 
