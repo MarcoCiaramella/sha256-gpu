@@ -136,7 +136,7 @@ fn sha256(@builtin(global_invocation_id) global_id: vec3<u32>) {
 async function getGPUDevice() {
     const adapter = await navigator.gpu.requestAdapter({ powerPreference: "high-performance" });
     if (!adapter) {
-        alert("No adapter");
+        throw "No adapter";
     }
     else {
         return await adapter.requestDevice();
