@@ -161,10 +161,10 @@ function getMessageSizes(bytes) {
     return u32Arr;
 }
 
-function calcNumWorkgroups(device, bytesArray) {
-    const numWorkgroups = Math.ceil(bytesArray.length / 256);
+function calcNumWorkgroups(device, arrArrBytes) {
+    const numWorkgroups = Math.ceil(arrArrBytes.length / 256);
     if (numWorkgroups > device.limits.maxComputeWorkgroupsPerDimension) {
-        throw `Input array is too large. Max is ${device.limits.maxComputeWorkgroupsPerDimension / 256} arrays.`;
+        throw `Input array too large. Max size is ${device.limits.maxComputeWorkgroupsPerDimension / 256}.`;
     }
     return numWorkgroups;
 }
@@ -173,19 +173,19 @@ let device;
 
 /**
  * 
- * @param {array} bytesArray array of array of bytes (array of bytes must be 32-bit aligned)
+ * @param {Uint8Array[]} arrArrBytes array of array of bytes (array of bytes must be 32-bit aligned)
  * @returns {Uint8Array[]} hashes
  */
-export async function sha256(bytesArray) {
+export async function sha256(arrArrBytes) {
 
     device = device ? device : await getGPUDevice();
 
-    const numWorkgroups = calcNumWorkgroups(device, bytesArray);
+    const numWorkgroups = calcNumWorkgroups(device, arrArrBytes);
 
     const messages = [];
     let bufferSize = 0;
-    const messageSizes = getMessageSizes(bytesArray[0]);
-    for (const bytes of bytesArray) {
+    const messageSizes = getMessageSizes(arrArrBytes[0]);
+    for (const bytes of arrArrBytes) {
         if (bytes.length % 4 !== 0) throw "Message must be 32-bit aligned";
         const message = padMessage(bytes, messageSizes[1]);
         // message is the padded version of the input message as dscribed by SHA-256 specification
@@ -218,7 +218,7 @@ export async function sha256(bytesArray) {
         size: Uint32Array.BYTES_PER_ELEMENT,
         usage: GPUBufferUsage.STORAGE
     });
-    new Uint32Array(numMessagesBuffer.getMappedRange()).set([bytesArray.length]);
+    new Uint32Array(numMessagesBuffer.getMappedRange()).set([arrArrBytes.length]);
     numMessagesBuffer.unmap();
 
     // message_sizes
