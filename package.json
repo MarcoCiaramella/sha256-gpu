@@ -1,6 +1,6 @@
 {
   "name": "@marco_ciaramella/sha256-gpu",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "SHA-256 over WebGPU",
   "main": "index.js",
   "directories": {
