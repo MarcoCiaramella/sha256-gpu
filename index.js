@@ -161,8 +161,8 @@ function getMessageSizes(bytes) {
     return u32Arr;
 }
 
-function calcNumWorkgroups(device, arrArrBytes) {
-    const numWorkgroups = Math.ceil(arrArrBytes.length / 256);
+function calcNumWorkgroups(device, messages) {
+    const numWorkgroups = Math.ceil(messages.length / 256);
     if (numWorkgroups > device.limits.maxComputeWorkgroupsPerDimension) {
         throw `Input array too large. Max size is ${device.limits.maxComputeWorkgroupsPerDimension / 256}.`;
     }
@@ -173,32 +173,36 @@ let device;
 
 /**
  * 
- * @param {Uint8Array[]} arrArrBytes array of array of bytes (array of bytes must be 32-bit aligned)
+ * @param {Uint8Array[]} messages messages to hash. Each message must be 32-bit aligned with the same size
  * @returns {Uint8Array[]} hashes
  */
-export async function sha256(arrArrBytes) {
+export async function sha256(messages) {
+
+    for (const message of messages) {
+        if (message.length !== messages[0].length) throw "Messages must have the same size";
+    }
 
     device = device ? device : await getGPUDevice();
 
-    const numWorkgroups = calcNumWorkgroups(device, arrArrBytes);
+    const numWorkgroups = calcNumWorkgroups(device, messages);
 
-    const messages = [];
+    const messagesPad = [];
     let bufferSize = 0;
-    const messageSizes = getMessageSizes(arrArrBytes[0]);
-    for (const bytes of arrArrBytes) {
-        if (bytes.length % 4 !== 0) throw "Message must be 32-bit aligned";
-        const message = padMessage(bytes, messageSizes[1]);
+    const messageSizes = getMessageSizes(messages[0]);
+    for (const message of messages) {
+        if (message.length % 4 !== 0) throw "Message must be 32-bit aligned";
+        const messagePad = padMessage(message, messageSizes[1]);
         // message is the padded version of the input message as dscribed by SHA-256 specification
-        messages.push(message);
+        messagesPad.push(messagePad);
         // messages has same size
-        bufferSize += message.byteLength;
+        bufferSize += messagePad.byteLength;
     }
-    const numMessages = messages.length;
+    const numMessages = messagesPad.length;
 
     // build shader input data
     const messageArray = new Uint32Array(new ArrayBuffer(bufferSize));
     let offset = 0;
-    for (const message of messages) {
+    for (const message of messagesPad) {
         messageArray.set(message, offset);
         offset += message.length;
     }
@@ -218,7 +222,7 @@ export async function sha256(arrArrBytes) {
         size: Uint32Array.BYTES_PER_ELEMENT,
         usage: GPUBufferUsage.STORAGE
     });
-    new Uint32Array(numMessagesBuffer.getMappedRange()).set([arrArrBytes.length]);
+    new Uint32Array(numMessagesBuffer.getMappedRange()).set([messagesPad.length]);
     numMessagesBuffer.unmap();
 
     // message_sizes

@@ -25,6 +25,6 @@ const messages = [
 // each message in messages must have the same size
 const hashes = await sha256(messages);
 for (let hash of hashes) {
-    console.log(hash.reduce((a, b) => a + b.toString(16).padStart(2, '0'), '0x'));
+    console.log(hash.reduce((a, b) => a + b.toString(16).padStart(2, '0'), ''));
 }
 ```
