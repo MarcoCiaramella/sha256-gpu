@@ -1,4 +1,5 @@
-const shader = `
+function shader(device) {
+    return `
 // SHA-256 for 32-bit aligned messages
 
 fn swap_endianess32(val: u32) -> u32 {
@@ -42,7 +43,7 @@ fn ch(e: u32, f: u32, g: u32) -> u32 {
 @group(0) @binding(2) var<storage, read> message_sizes: array<u32>;
 @group(0) @binding(3) var<storage, read_write> hash: array<u32>;
 
-@compute @workgroup_size(256)
+@compute @workgroup_size(${device.limits.maxComputeWorkgroupSizeX})
 fn sha256(@builtin(global_invocation_id) global_id: vec3<u32>) {
 
     let index = global_id.x;
@@ -130,8 +131,8 @@ fn sha256(@builtin(global_invocation_id) global_id: vec3<u32>) {
     hash[hash_base_index + 5] = swap_endianess32(hash[hash_base_index + 5]);
     hash[hash_base_index + 6] = swap_endianess32(hash[hash_base_index + 6]);
     hash[hash_base_index + 7] = swap_endianess32(hash[hash_base_index + 7]);
+}`;
 }
-`;
 
 async function getGPUDevice() {
     const adapter = await navigator.gpu.requestAdapter({ powerPreference: "high-performance" });
@@ -162,9 +163,9 @@ function getMessageSizes(bytes) {
 }
 
 function calcNumWorkgroups(device, messages) {
-    const numWorkgroups = Math.ceil(messages.length / 256);
+    const numWorkgroups = Math.ceil(messages.length / device.limits.maxComputeWorkgroupSizeX);
     if (numWorkgroups > device.limits.maxComputeWorkgroupsPerDimension) {
-        throw `Input array too large. Max size is ${device.limits.maxComputeWorkgroupsPerDimension * 256}.`;
+        throw `Input array too large. Max size is ${device.limits.maxComputeWorkgroupsPerDimension * device.limits.maxComputeWorkgroupSizeX}.`;
     }
     return numWorkgroups;
 }
@@ -242,7 +243,7 @@ export async function sha256(messages) {
     });
 
     const shaderModule = device.createShaderModule({
-        code: shader
+        code: shader(device)
     });
 
     const computePipeline = device.createComputePipeline({
