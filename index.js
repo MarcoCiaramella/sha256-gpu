@@ -164,7 +164,7 @@ function getMessageSizes(bytes) {
 function calcNumWorkgroups(device, messages) {
     const numWorkgroups = Math.ceil(messages.length / 256);
     if (numWorkgroups > device.limits.maxComputeWorkgroupsPerDimension) {
-        throw `Input array too large. Max size is ${device.limits.maxComputeWorkgroupsPerDimension / 256}.`;
+        throw `Input array too large. Max size is ${device.limits.maxComputeWorkgroupsPerDimension * 256}.`;
     }
     return numWorkgroups;
 }
