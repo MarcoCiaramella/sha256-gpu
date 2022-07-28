@@ -177,7 +177,7 @@ let device;
  * @param {Uint8Array[]} messages messages to hash. Each message must be 32-bit aligned with the same size
  * @returns {Uint8Array[]} hashes
  */
-export async function sha256(messages) {
+export async function sha256_gpu(messages) {
 
     for (const message of messages) {
         if (message.length !== messages[0].length) throw "Messages must have the same size";

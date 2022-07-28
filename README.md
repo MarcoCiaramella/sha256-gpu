@@ -8,7 +8,7 @@ npm i @marco_ciaramella/sha256-gpu
 ```
 ## Usage
 ```javascript
-import { sha256 } from "@marco_ciaramella/sha256-gpu";
+import { sha256_gpu } from "@marco_ciaramella/sha256-gpu";
 
 // at the current version of WGSL u64 is not supported. This force the max message length to be ((2^32) - 1) / 32
 const messages = [
@@ -23,7 +23,7 @@ const messages = [
     new Uint8Array([0x09, 0x00, 0x00, 0x00])  // int 9
 ];
 // each message in messages must have the same size
-const hashes = await sha256(messages);
+const hashes = await sha256_gpu(messages);
 for (let hash of hashes) {
     console.log(hash.reduce((a, b) => a + b.toString(16).padStart(2, '0'), ''));
 }
