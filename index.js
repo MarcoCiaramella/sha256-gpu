@@ -309,11 +309,5 @@ export async function sha256_gpu(messages) {
 
     await gpuReadBuffer.mapAsync(GPUMapMode.READ);
 
-    const hashSize = 256 / 8;
-    const hashes = [];
-    for (let i = 0; i < numMessages; i++) {
-        hashes.push(new Uint8Array(gpuReadBuffer.getMappedRange(i * hashSize, hashSize)));
-    }
-
-    return hashes;
+    return new Uint8Array(gpuReadBuffer.getMappedRange());
 }
