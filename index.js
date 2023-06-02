@@ -175,7 +175,7 @@ let device;
 /**
  * 
  * @param {Uint8Array[]} messages messages to hash. Each message must be 32-bit aligned with the same size
- * @returns {Uint8Array[]} hashes
+ * @returns {Uint8Array} the set of resulting hashes
  */
 export async function sha256_gpu(messages) {
 
