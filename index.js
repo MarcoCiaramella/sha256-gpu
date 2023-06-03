@@ -173,7 +173,33 @@ function check(messages) {
     }
 }
 
-let device;
+class GPU {
+
+    #device;
+    #computePipeline;
+
+    async init() {
+        this.#device = await getGPUDevice();
+        this.#computePipeline = this.#device.createComputePipeline({
+            compute: {
+                module: this.#device.createShaderModule({ code: shader(this.#device) }),
+                entryPoint: "sha256"
+            },
+            layout: 'auto'
+        });
+        return this;
+    }
+
+    get device() {
+        return this.#device;
+    }
+
+    get computePipeline() {
+        return this.#computePipeline;
+    }
+}
+
+const gpu = await new GPU().init();
 
 /**
  * 
@@ -184,9 +210,7 @@ export async function sha256_gpu(messages) {
 
     check(messages);
 
-    device = device ? device : await getGPUDevice();
-
-    const numWorkgroups = calcNumWorkgroups(device, messages);
+    const numWorkgroups = calcNumWorkgroups(gpu.device, messages);
 
     const messageSizes = getMessageSizes(messages[0]);
     const messageArray = new Uint32Array(messageSizes[1] * messages.length);
@@ -199,7 +223,7 @@ export async function sha256_gpu(messages) {
     }
 
     // messages
-    const messageArrayBuffer = device.createBuffer({
+    const messageArrayBuffer = gpu.device.createBuffer({
         mappedAtCreation: true,
         size: messageArray.byteLength,
         usage: GPUBufferUsage.STORAGE
@@ -208,7 +232,7 @@ export async function sha256_gpu(messages) {
     messageArrayBuffer.unmap();
 
     // num_messages
-    const numMessagesBuffer = device.createBuffer({
+    const numMessagesBuffer = gpu.device.createBuffer({
         mappedAtCreation: true,
         size: Uint32Array.BYTES_PER_ELEMENT,
         usage: GPUBufferUsage.STORAGE
@@ -217,7 +241,7 @@ export async function sha256_gpu(messages) {
     numMessagesBuffer.unmap();
 
     // message_sizes
-    const messageSizesBuffer = device.createBuffer({
+    const messageSizesBuffer = gpu.device.createBuffer({
         mappedAtCreation: true,
         size: messageSizes.byteLength,
         usage: GPUBufferUsage.STORAGE
@@ -227,25 +251,13 @@ export async function sha256_gpu(messages) {
 
     // Result
     const resultBufferSize = (256 / 8) * messages.length;
-    const resultBuffer = device.createBuffer({
+    const resultBuffer = gpu.device.createBuffer({
         size: resultBufferSize,
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC
     });
 
-    const shaderModule = device.createShaderModule({
-        code: shader(device)
-    });
-
-    const computePipeline = device.createComputePipeline({
-        compute: {
-            module: shaderModule,
-            entryPoint: "sha256"
-        },
-        layout: 'auto'
-    });
-
-    const bindGroup = device.createBindGroup({
-        layout: computePipeline.getBindGroupLayout(0),
+    const bindGroup = gpu.device.createBindGroup({
+        layout: gpu.computePipeline.getBindGroupLayout(0),
         entries: [
             {
                 binding: 0,
@@ -274,15 +286,15 @@ export async function sha256_gpu(messages) {
         ]
     });
 
-    const commandEncoder = device.createCommandEncoder();
+    const commandEncoder = gpu.device.createCommandEncoder();
 
     const passEncoder = commandEncoder.beginComputePass();
-    passEncoder.setPipeline(computePipeline);
+    passEncoder.setPipeline(gpu.computePipeline);
     passEncoder.setBindGroup(0, bindGroup);
     passEncoder.dispatchWorkgroups(numWorkgroups);
     passEncoder.end();
 
-    const gpuReadBuffer = device.createBuffer({
+    const gpuReadBuffer = gpu.device.createBuffer({
         size: resultBufferSize,
         usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ
     });
@@ -295,7 +307,7 @@ export async function sha256_gpu(messages) {
     );
 
     const gpuCommands = commandEncoder.finish();
-    device.queue.submit([gpuCommands]);
+    gpu.device.queue.submit([gpuCommands]);
 
     await gpuReadBuffer.mapAsync(GPUMapMode.READ);
 
