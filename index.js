@@ -195,7 +195,6 @@ export async function sha256_gpu(messages) {
         const messagePad = padMessage(message, messageSizes[1]);
         // message is the padded version of the input message as dscribed by SHA-256 specification
         messagesPad.push(messagePad);
-        // messages has same size
         bufferSize += messagePad.byteLength;
     }
     const numMessages = messagesPad.length;
