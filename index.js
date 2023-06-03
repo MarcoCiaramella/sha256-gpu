@@ -199,7 +199,7 @@ class GPU {
     }
 }
 
-const gpu = await new GPU().init();
+let gpu;
 
 /**
  * 
@@ -209,6 +209,8 @@ const gpu = await new GPU().init();
 export async function sha256_gpu(messages) {
 
     check(messages);
+
+    gpu = gpu ? gpu : await new GPU().init();
 
     const numWorkgroups = calcNumWorkgroups(gpu.device, messages);
 
