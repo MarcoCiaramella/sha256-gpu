@@ -188,23 +188,14 @@ export async function sha256_gpu(messages) {
 
     const numWorkgroups = calcNumWorkgroups(device, messages);
 
-    const messagesPad = [];
-    let bufferSize = 0;
     const messageSizes = getMessageSizes(messages[0]);
+    const messageArray = new Uint32Array(messageSizes[1] * messages.length);
+    let offset = 0;
     for (const message of messages) {
         const messagePad = padMessage(message, messageSizes[1]);
         // messagePad is the padded version of the input message as dscribed by SHA-256 specification
-        messagesPad.push(messagePad);
-        bufferSize += messagePad.byteLength;
-    }
-    const numMessages = messagesPad.length;
-
-    // build shader input data
-    const messageArray = new Uint32Array(new ArrayBuffer(bufferSize));
-    let offset = 0;
-    for (const message of messagesPad) {
-        messageArray.set(message, offset);
-        offset += message.length;
+        messageArray.set(messagePad, offset);
+        offset += messagePad.length;
     }
 
     // messages
@@ -222,7 +213,7 @@ export async function sha256_gpu(messages) {
         size: Uint32Array.BYTES_PER_ELEMENT,
         usage: GPUBufferUsage.STORAGE
     });
-    new Uint32Array(numMessagesBuffer.getMappedRange()).set([messagesPad.length]);
+    new Uint32Array(numMessagesBuffer.getMappedRange()).set([messages.length]);
     numMessagesBuffer.unmap();
 
     // message_sizes
@@ -235,7 +226,7 @@ export async function sha256_gpu(messages) {
     messageSizesBuffer.unmap();
 
     // Result
-    const resultBufferSize = (256 / 8) * numMessages;
+    const resultBufferSize = (256 / 8) * messages.length;
     const resultBuffer = device.createBuffer({
         size: resultBufferSize,
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC
