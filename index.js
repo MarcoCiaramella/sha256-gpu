@@ -155,11 +155,7 @@ function getMessageSizes(bytes) {
     const k = 512 - (lenBit + 1 + 64) % 512;
     const padding = 1 + k + 64;
     const lenBitPadded = lenBit + padding;
-    const arrBuff = new ArrayBuffer(2 * Uint32Array.BYTES_PER_ELEMENT);
-    const u32Arr = new Uint32Array(arrBuff);
-    u32Arr[0] = lenBit / 32;
-    u32Arr[1] = lenBitPadded / 32;
-    return u32Arr;
+    return new Uint32Array([lenBit / 32, lenBitPadded / 32]);
 }
 
 function calcNumWorkgroups(device, messages) {
