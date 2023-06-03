@@ -21,7 +21,7 @@ const messages = [
 ];
 // each message in messages must have the same size
 const hashes = await sha256_gpu(messages);
-for (let hash of hashes) {
-    console.log(hash.reduce((a, b) => a + b.toString(16).padStart(2, '0'), ''));
+for (let i = 0; i < hashes.length; i += 32) {
+    console.log(hashes.subarray(i, i + 32).reduce((a, b) => a + b.toString(16).padStart(2, '0'), ''));
 }
 ```
