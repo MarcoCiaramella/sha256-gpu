@@ -166,6 +166,13 @@ function calcNumWorkgroups(device, messages) {
     return numWorkgroups;
 }
 
+function check(messages) {
+    for (const message of messages) {
+        if (message.length !== messages[0].length) throw "Messages must have the same size";
+        if (message.length % 4 !== 0) throw "Message must be 32-bit aligned";
+    }
+}
+
 let device;
 
 /**
@@ -175,9 +182,7 @@ let device;
  */
 export async function sha256_gpu(messages) {
 
-    for (const message of messages) {
-        if (message.length !== messages[0].length) throw "Messages must have the same size";
-    }
+    check(messages);
 
     device = device ? device : await getGPUDevice();
 
@@ -187,9 +192,8 @@ export async function sha256_gpu(messages) {
     let bufferSize = 0;
     const messageSizes = getMessageSizes(messages[0]);
     for (const message of messages) {
-        if (message.length % 4 !== 0) throw "Message must be 32-bit aligned";
         const messagePad = padMessage(message, messageSizes[1]);
-        // message is the padded version of the input message as dscribed by SHA-256 specification
+        // messagePad is the padded version of the input message as dscribed by SHA-256 specification
         messagesPad.push(messagePad);
         bufferSize += messagePad.byteLength;
     }
