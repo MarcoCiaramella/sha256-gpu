@@ -1,5 +1,5 @@
 # sha256-gpu
-SHA-256 run over GPU throught WebGPU.
+A GPU version of SHA-256 using WebGPU.
 ## Install
 ```
 npm i @marco_ciaramella/sha256-gpu
