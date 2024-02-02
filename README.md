@@ -28,3 +28,5 @@ for (let i = 0; i < hashes.length; i += 32) {
     console.log(hashes.subarray(i, i + 32).reduce((a, b) => a + b.toString(16).padStart(2, '0'), ''));
 }
 ```
+## Note
+Use this module when you have a lot of messages and want to compute SHA-256 at once. Don't use this module when you need the SHA-256 for one message at a time. In this case the CPU version performs better.
